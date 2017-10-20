@@ -26,19 +26,18 @@ export default EmberObject.extend(Evented, {
     if (get(this, 'sticky')) {
       return;
     }
-    let timerTaskInstance = get(this, 'timerTask');
-    timerTaskInstance.perform();
-    set(this, 'timerTaskInstance', timerTaskInstance)
+    set(this, 'timerTaskInstance', get(this, 'timerTask').perform());
     this._setInitializedTime();
   },
 
   destroyMessage() {
+    this._cancelTimer();
     let exitTaskInstance = get(this, 'exitTaskInstance');
     if (exitTaskInstance && exitTaskInstance.isRunning) {
       exitTaskInstance.cancel();
       this._teardown();
     } else {
-      get(this, 'delayedTeardownTask').perform();
+      set(this, 'exitTaskInstance', get(this, 'exitTimerTask').perform());
     }
   },
 
@@ -46,7 +45,6 @@ export default EmberObject.extend(Evented, {
     if (!get(this, 'isExitable')) {
       return;
     }
-    this._cancelTimer();
     let exitTaskInstance = get(this, 'exitTimerTask').perform();
     set(this, 'exitTaskInstance', exitTaskInstance);
     this.trigger('didExitMessage');
@@ -72,19 +70,18 @@ export default EmberObject.extend(Evented, {
   },
 
   timerTask: task(function* () {
-    yield timeout(get(this, 'timeout'));
+    if (get(this, 'timeout')) {
+      yield timeout(get(this, 'timeout'));
+    }
     this.exitMessage();
+    this._teardown();
   }),
 
   exitTimerTask: task(function* () {
     set(this, 'exiting', true);
-    yield timeout(get(this, 'extendedTimeout') || 0);
-    this._teardown();
-  }),
-
-  delayedTeardownTask: task(function* () {
-    set(this, 'exiting', true);
-    yield timeout(get(this, 'extendedTimeout'));
+    if (get(this, 'extendedTimeout')) {
+      yield timeout(get(this, 'extendedTimeout'));
+    }
     this._teardown();
   }),
 
@@ -103,14 +100,15 @@ export default EmberObject.extend(Evented, {
   },
 
   _cancelTimer() {
-    let timerInstance = get(this, 'timerInstance');
-    if (timerInstance) {
-      timerInstance.cancel();
+    let timerTaskInstance = get(this, 'timerTaskInstance');
+    if (timerTaskInstance) {
+      timerTaskInstance.cancel();
     }
   },
 
   _checkIfShouldExit() {
     if (this._getElapsedTime() >= get(this, 'timeout') && !get(this, 'sticky')) {
+      this._cancelTimer();
       this.exitMessage();
     }
   },

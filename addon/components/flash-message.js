@@ -7,7 +7,6 @@ const {
   getWithDefault,
   isPresent,
   run,
-  on,
   get,
   set,
   computed
@@ -54,12 +53,13 @@ export default Component.extend({
     }
   }),
 
-  _setActive: on('didInsertElement', function() {
+  didInsertElement() {
+    this._super(...arguments);
     const pendingSet = next(this, () => {
       set(this, 'active', true);
     });
     set(this, 'pendingSet', pendingSet);
-  }),
+  },
 
   progressDuration: computed('flash.showProgress', {
     get() {
@@ -96,7 +96,7 @@ export default Component.extend({
   },
 
   willDestroy() {
-    this._super();
+    this._super(...arguments);
     this._destroyFlashMessage();
     cancel(get(this, 'pendingSet'));
   },
